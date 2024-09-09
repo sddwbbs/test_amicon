@@ -2,7 +2,7 @@
 # Copyright(c) 2010-2014 Intel Corporation
 
 # binary name
-APP = helloworld
+APP = test
 
 # all source are stored in SRCS-y
 SRCS-y := ./test/main.c
@@ -22,7 +22,7 @@ static: build/$(APP)-static
 	ln -sf $(APP)-static build/$(APP)
 
 PC_FILE := $(shell $(PKGCONF) --path libdpdk 2>/dev/null)
-CFLAGS += -O3 $(shell $(PKGCONF) --cflags libdpdk)
+CFLAGS += -std=c11 -O3 -Wall -Wextra -Wstrict-prototypes -Wmissing-declarations -Wdeclaration-after-statement -Werror $(shell $(PKGCONF) --cflags libdpdk)
 LDFLAGS_SHARED = $(shell $(PKGCONF) --libs libdpdk)
 LDFLAGS_STATIC = $(shell $(PKGCONF) --static --libs libdpdk)
 
@@ -46,7 +46,7 @@ build:
 	@mkdir -p $@
 
 run:
-	sudo ./build/helloworld -l 0-2
+	sudo ./build/test -l 0-2
 
 .PHONY: clean
 clean:
