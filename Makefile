@@ -1,6 +1,3 @@
-# SPDX-License-Identifier: BSD-3-Clause
-# Copyright(c) 2010-2014 Intel Corporation
-
 # binary name
 APP = test
 
@@ -12,6 +9,7 @@ PKGCONF ?= pkg-config
 # Build using pkg-config variables if possible
 ifneq ($(shell $(PKGCONF) --exists libdpdk && echo 0),0)
 $(error "no installation of DPDK found")
+
 endif
 
 all: shared

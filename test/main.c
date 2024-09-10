@@ -20,26 +20,25 @@ typedef struct {
 } Pair;
 
 typedef struct {
-	// ull value;
 	Pair pair;
-	int sign;
-} BigNumber;
+	bool empty;
+} TableElem;
 
 typedef struct {
-	BigNumber* table1;
-	BigNumber* table2;
+	TableElem* table1;
+	TableElem* table2;
 	int totalElements;
-} HashTable;
+} HashTables;
 
 ull generateRandomNumber(void);
-bool initialize_hash_table(HashTable* hashTable);
+bool initialize_hash_tables(HashTables* hashTables);
 size_t hash1(ull key);
 size_t hash2(ull key);
-bool belong(const HashTable* hashTable, ull key);
-int insert(HashTable* hashTable, Pair elem);
-BigNumber getDataFromKey(HashTable* hashTable, ull key);
-size_t getHashIdx(HashTable* hashTable, ull key);
-void printTables(HashTable *hashTable);
+bool belong(const HashTables* hashTables, ull key);
+int insert(HashTables* hashTables, Pair elem);
+ull getDataFromKey(const HashTables* hashTables, ull key);
+size_t getHashIdx(const HashTables* hashTables, ull key);
+void printTables(const HashTables *hashTables);
 
 ull generateRandomNumber(void) {
 	ull lower = (ull)rand();
@@ -48,23 +47,21 @@ ull generateRandomNumber(void) {
 	return (upper << 32) | lower;
 }
 
-bool initialize_hash_table(HashTable* hashTable) {
-	hashTable->totalElements = 0;
-    hashTable->table1 = (BigNumber*)rte_malloc(NULL, sizeof(BigNumber) * NUM_OF_ELEMENTS, 0);
-    hashTable->table2 = (BigNumber*)rte_malloc(NULL, sizeof(BigNumber) * NUM_OF_ELEMENTS, 0);
+bool initialize_hash_tables(HashTables* hashTables) {
+	hashTables->totalElements = 0;
+    hashTables->table1 = (TableElem*)rte_malloc(NULL, sizeof(TableElem) * NUM_OF_ELEMENTS, 0);
+    hashTables->table2 = (TableElem*)rte_malloc(NULL, sizeof(TableElem) * NUM_OF_ELEMENTS, 0);
 
-	if (hashTable->table1 == NULL || hashTable->table2 == NULL) {
-		printf("Failed to allocate memory");
+	if (hashTables->table1 == NULL || hashTables->table2 == NULL)
 		return false;
-	}
 
 	for (size_t i = 0; i < NUM_OF_ELEMENTS; ++i) {
-		hashTable->table1[i].pair.key = 1;
-		hashTable->table1[i].pair.value = 1;
-		hashTable->table1[i].sign = -1;
-		hashTable->table2[i].pair.key = 1;
-		hashTable->table2[i].pair.value = 1;
-		hashTable->table2[i].sign = -1;
+		hashTables->table1[i].pair.key = 1;
+		hashTables->table1[i].pair.value = 1;
+		hashTables->table1[i].empty = true;
+		hashTables->table2[i].pair.key = 1;
+		hashTables->table2[i].pair.value = 1;
+		hashTables->table2[i].empty = true;
 	}
 
 	return true;
@@ -78,49 +75,48 @@ size_t hash2(const ull key) {
 	return (key / NUM_OF_ELEMENTS) % NUM_OF_ELEMENTS;
 }
 
-bool belong(const HashTable* hashTable, const ull key) {
+bool belong(const HashTables* hashTables, const ull key) {
 	const size_t index1 = hash1(key);
 	const size_t index2 = hash2(key);
 
-	return ((hashTable->table1[index1].sign >= 0 && hashTable->table1[index1].pair.key == key) ||
-			(hashTable->table2[index2].sign >= 0 && hashTable->table2[index2].pair.key == key));
+	return ((!hashTables->table1[index1].empty && hashTables->table1[index1].pair.key == key) ||
+			(!hashTables->table2[index2].empty && hashTables->table2[index2].pair.key == key));
 }
 
-int insert(HashTable* hashTable, const Pair elem) {
+int insert(HashTables* hashTables, const Pair elem) {
 	int i = 1, pass = 1;
-	Pair elemCopy = elem;
-	ull temp;
+	Pair curElem = elem, temp;
 
-	if (belong(hashTable, elem.key)) return 0;
+	if (belong(hashTables, elem.key)) return 0;
 
 	while (i < 2 * (int)NUM_OF_ELEMENTS) {
 		if (pass == 1) {
-			if (hashTable->table1[hash1(elemCopy.key)].sign < 0) {
-				hashTable->table1[hash1(elemCopy.key)].pair.key = elemCopy.key;
-				hashTable->table1[hash1(elemCopy.key)].pair.value = elemCopy.value;
-				hashTable->table1[hash1(elemCopy.key)].sign = 1;
-				++hashTable->totalElements;
+			if (hashTables->table1[hash1(curElem.key)].empty) {
+				hashTables->table1[hash1(curElem.key)].pair.key = curElem.key;
+				hashTables->table1[hash1(curElem.key)].pair.value = curElem.value;
+				hashTables->table1[hash1(curElem.key)].empty = false;
+				++hashTables->totalElements;
 				return 1;
 			}
 
-			temp = hashTable->table1[hash1(elemCopy.key)].pair.value;
-			hashTable->table1[hash1(elemCopy.key)].pair.key = elemCopy.key;
-			hashTable->table1[hash1(elemCopy.key)].pair.value = elemCopy.value;
-			elemCopy.value = temp;
+			temp = hashTables->table1[hash1(curElem.key)].pair;
+			hashTables->table1[hash1(curElem.key)].pair.key = curElem.key;
+			hashTables->table1[hash1(curElem.key)].pair.value = curElem.value;
+			curElem = temp;
 			pass = 2;
 		} else {
-			if (hashTable->table2[hash2(elemCopy.key)].sign < 0) {
-				hashTable->table2[hash2(elemCopy.key)].pair.key = elemCopy.key;
-				hashTable->table2[hash2(elemCopy.key)].pair.value = elemCopy.value;
-				hashTable->table2[hash2(elemCopy.key)].sign = 1;
-				++hashTable->totalElements;
+			if (hashTables->table2[hash2(curElem.key)].empty) {
+				hashTables->table2[hash2(curElem.key)].pair.key = curElem.key;
+				hashTables->table2[hash2(curElem.key)].pair.value = curElem.value;
+				hashTables->table2[hash2(curElem.key)].empty = false;
+				++hashTables->totalElements;
 				return 1;
 			}
 
-			temp = hashTable->table2[hash2(elemCopy.key)].pair.value;
-			hashTable->table2[hash2(elemCopy.key)].pair.key = elemCopy.key;
-			hashTable->table2[hash2(elemCopy.key)].pair.value = elemCopy.value;
-			elemCopy.value = temp;
+			temp = hashTables->table2[hash2(curElem.key)].pair;
+			hashTables->table2[hash2(curElem.key)].pair.key = curElem.key;
+			hashTables->table2[hash2(curElem.key)].pair.value = curElem.value;
+			curElem = temp;
 			pass = 1;
 		}
 		++i;
@@ -129,42 +125,35 @@ int insert(HashTable* hashTable, const Pair elem) {
 	return 0;
 }
 
-BigNumber getDataFromKey(HashTable* hashTable, const ull key) {
+ull getDataFromKey(const HashTables* hashTables, const ull key) {
 	const size_t index1 = hash1(key);
 	const size_t index2 = hash2(key);
-	BigNumber data;
-	data.sign = -1;
-	data.pair.key = 1;
-	data.pair.value = 1;
+	ull data = 0;
 
-	if (hashTable->table1[index1].sign > 0 && hashTable->table1[index1].pair.key == key) {
-		data.sign = 1;
-		data.pair.key = key;
-		data.pair.value = hashTable->table1[index1].pair.value;
+	if (!hashTables->table1[index1].empty && hashTables->table1[index1].pair.key == key) {
+		data = hashTables->table1[index1].pair.value;
 		return data;
 	}
 
-	if (hashTable->table2[index2].sign > 0 && hashTable->table2[index2].pair.key == key) {
-		data.sign = 1;
-		data.pair.key = key;
-		data.pair.value = hashTable->table2[index2].pair.value;
+	if (!hashTables->table2[index2].empty && hashTables->table2[index2].pair.key == key) {
+		data = hashTables->table2[index2].pair.value;
 		return data;
 	}
 
 	return data;
 }
 
-size_t getHashIdx(HashTable* hashTable, const ull key) {
-	size_t idx = 0;
+size_t getHashIdx(const HashTables* hashTables, const ull key) {
 	const size_t index1 = hash1(key);
 	const size_t index2 = hash2(key);
+	size_t idx = 0;
 
-	if (hashTable->table1[index1].sign > 0 && hashTable->table1[index1].pair.key == key) {
+	if (!hashTables->table1[index1].empty && hashTables->table1[index1].pair.key == key) {
 		idx = index1;
 		return idx;
 	}
 
-	if (hashTable->table2[index2].sign > 0 && hashTable->table2[index2].pair.key == key) {
+	if (!hashTables->table2[index2].empty && hashTables->table2[index2].pair.key == key) {
 		idx = index2;
 		return idx;
 	}
@@ -172,39 +161,42 @@ size_t getHashIdx(HashTable* hashTable, const ull key) {
 	return idx;
 }
 
-void printTables(HashTable *hashTable) {
-	const char negativeNumSign = '-';
-	const char positiveNumSign = ' ';
-	char sign1;
-	char sign2;
+void printTables(const HashTables *hashTables) {
+	char isEmpty1;
+	char isEmpty2;
 
 	printf("Table1\t|\tTable2\n");
 	printf("---------------------------------\n");
 	for (size_t i = 0; i < NUM_OF_ELEMENTS; ++i) {
-		sign1 = (hashTable->table1[i].sign >= 0) ? positiveNumSign : negativeNumSign;
-		sign2 = (hashTable->table2[i].sign >= 0) ? positiveNumSign : negativeNumSign;
+		isEmpty1 = hashTables->table1[i].empty ? 'e' : ' ';
+		isEmpty2 = hashTables->table2[i].empty ? 'e' : ' ';
 
 		printf("%c%llu\t|\t%c%llu\n",
-			sign1, hashTable->table1[i].pair.value,
-			sign2, hashTable->table2[i].pair.value);
+			isEmpty1,
+			hashTables->table1[i].empty ? 0 : hashTables->table1[i].pair.value,
+			isEmpty2,
+			hashTables->table2[i].empty ? 0 : hashTables->table2[i].pair.value);
 	}
 }
 
 int main(int argc, char **argv) {
 	int ret = rte_eal_init(argc, argv);
-	HashTable hashTable;
+	HashTables hashTables;
 	struct timespec res1,res2;
 	int curKeys = 0;
-	int hashSize = 0;
-	ull hashIdx;
-	BigNumber data;
+	int hashSize;
+	size_t hashIdx;
+	ull data;
+
+	srand (time(NULL));
 
 	printf("cuchoo test\n");
 
 	if (ret < 0)
 		rte_panic("Cannot init EAL\n");
 
-	if (!initialize_hash_table(&hashTable)) {
+	if (!initialize_hash_tables(&hashTables)) {
+		printf("Failed to allocate memory");
 		return -1;
 	}
 
@@ -226,26 +218,26 @@ int main(int argc, char **argv) {
 		if (i == 123456) {
 			elem.key = 42;
 			elem.value = 123456;
-			if (insert(&hashTable, elem) == 1) ++curKeys;
+			if (insert(&hashTables, elem) == 1) ++curKeys;
 			continue;
 		}
 
 		elem.key = generateRandomNumber();
 		elem.value = generateRandomNumber();
-		if (insert(&hashTable, elem) == 1) ++curKeys;
+		if (insert(&hashTables, elem) == 1) ++curKeys;
 	}
 
-	hashSize = sizeof(BigNumber) * hashTable.totalElements;
-	hashIdx = getHashIdx(&hashTable, 42);
+	hashSize = sizeof(TableElem) * hashTables.totalElements;
+	hashIdx = getHashIdx(&hashTables, 42);
 
 	clock_gettime(CLOCK_REALTIME,&res1);
-	data = getDataFromKey(&hashTable, 42);
+	data = getDataFromKey(&hashTables, 42);
 	clock_gettime(CLOCK_REALTIME, &res2);
 
-	printf("Hash size: %d, key: 42, hash idx: %llu, data: %llu, lookup time: %lu ns",
+	printf("Hash size: %d, key: 42, hash idx: %lu, data: %llu, lookup time: %lu ns",
 		hashSize,
 		hashIdx,
-		data.pair.value,
+		data,
 		res2.tv_nsec - res1.tv_nsec);
 
 	rte_eal_cleanup();
