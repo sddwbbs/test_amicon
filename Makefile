@@ -9,7 +9,17 @@ PKGCONF ?= pkg-config
 # Build using pkg-config variables if possible
 ifneq ($(shell $(PKGCONF) --exists libdpdk && echo 0),0)
 $(error "no installation of DPDK found")
-
+	mkdir third_party && cd third_party
+	wget https://fast.dpdk.org/rel/dpdk-24.07.tar.xz
+	tar xf dpdk-24.07.tar.xz && cd dpdk-24.07
+	meson setup build
+	cd build
+	ninja
+	meson install
+	ldconfig
+	mkdir -p /dev/hugepages
+	mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
+	echo 64 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
 endif
 
 all: shared
